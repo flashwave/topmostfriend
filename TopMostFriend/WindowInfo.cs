@@ -67,11 +67,11 @@ namespace TopMostFriend {
             Win32.SwitchToThisWindow(Handle, false);
         }
 
-        public bool ToggleTopMost() {
+        public bool ToggleTopMost(bool switchWindow) {
             bool expected = !IsTopMost;
             IsTopMost = expected;
             bool success = IsTopMost == expected;
-            if(expected && success)
+            if(expected && success && switchWindow)
                 SwitchTo();
             return success;
         }

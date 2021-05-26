@@ -67,7 +67,7 @@ namespace TopMostFriend {
             string cliToggle = args.FirstOrDefault(x => x.StartsWith(@"--hwnd="));
             if(!string.IsNullOrEmpty(cliToggle) && int.TryParse(cliToggle.Substring(7), out int cliToggleHWnd)) {
                 WindowInfo cliWindow = new WindowInfo(cliToggleHWnd);
-                if(!cliWindow.ToggleTopMost())
+                if(!cliWindow.ToggleTopMost(true))
                     TopMostFailed(cliWindow);
             }
 
@@ -125,7 +125,7 @@ namespace TopMostFriend {
             }
 
             OriginalIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
-
+            
             CtxMenu = new ContextMenuStrip {
                 BackgroundImage = backgroundImage,
                 BackgroundImageLayout = backgroundLayout,
@@ -190,6 +190,8 @@ namespace TopMostFriend {
             HotKeys?.Dispose();
             SysIcon?.Dispose();
             GlobalMutex.ReleaseMutex();
+            // Making sure no window is left with the TopMost attribute active after closing the app
+            ClearTopMostWindows();
         }
 
         private static bool? IsElevatedValue;
@@ -270,7 +272,7 @@ namespace TopMostFriend {
                         if(Settings.Get(SHIFT_CLICK_BLACKLIST, true) && Control.ModifierKeys.HasFlag(Keys.Shift)) {
                             AddBlacklistedTitle(title);
                             SaveBlacklistedTitles();
-                        } else if(!window.ToggleTopMost())
+                        } else if(!window.ToggleTopMost(true))
                             TopMostFailed(window);
                     })) {
                         CheckOnClick = true,
@@ -285,6 +287,17 @@ namespace TopMostFriend {
 
             CtxMenu.Items.Clear();
             CtxMenu.Items.AddRange(items.ToArray());
+        }
+
+        private static void ClearTopMostWindows()
+        {
+            IEnumerable<WindowInfo> windows = WindowInfo.GetAllWindows();
+            foreach(WindowInfo window in windows) {
+                    if (window.IsTopMost)
+                    {
+                        window.ToggleTopMost(false);
+                    }
+            }
         }
 
         private static void TopMostFailed(WindowInfo window) {
@@ -339,7 +352,7 @@ namespace TopMostFriend {
         public static void ToggleForegroundWindow() {
             WindowInfo window = WindowInfo.GetForegroundWindow();
 
-            if(window.ToggleTopMost()) {
+            if(window.ToggleTopMost(true)) {
                 if(Settings.Get(TOGGLE_BALLOON_SETTING, false)) {
                     string title = window.Title;
                     SysIcon?.ShowBalloonTip(
@@ -375,5 +388,6 @@ namespace TopMostFriend {
             if((e.Button & MouseButtons.Right) > 0)
                 RefreshWindowList();
         }
+
     }
 }
