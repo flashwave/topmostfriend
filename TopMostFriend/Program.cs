@@ -1,8 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Linq;
+using System.Security.Principal;
+using System.Text;
 using System.Threading;
 using System.Windows.Forms;
 
@@ -10,7 +14,6 @@ namespace TopMostFriend {
     public static class Program {
         private static NotifyIcon SysIcon;
         private static HotKeyWindow HotKeys;
-        private static readonly Process OwnProcess = Process.GetCurrentProcess();
         private static int InitialItems = 0;
 
         private const string GUID =
@@ -30,21 +33,38 @@ namespace TopMostFriend {
         public const string SHOW_EXPLORER_SETTING = @"ShowExplorerMisc";
         public const string LIST_BACKGROUND_PATH_SETTING = @"ListBackgroundPath";
         public const string LIST_BACKGROUND_LAYOUT_SETTING = @"ListBackgroundLayout";
+        public const string ALWAYS_ADMIN_SETTING = @"RunAsAdministrator";
 
         [STAThread]
-        public static void Main() {
+        public static void Main(string[] args) {
             if (Environment.OSVersion.Version.Major >= 6)
                 Win32.SetProcessDPIAware();
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
+            if (args.Contains(@"--reset-admin"))
+                Settings.Remove(ALWAYS_ADMIN_SETTING);
+
+            string cliToggle = args.FirstOrDefault(x => x.StartsWith(@"--hwnd="));
+            if (!string.IsNullOrEmpty(cliToggle) && int.TryParse(cliToggle.Substring(7), out int cliToggleHWnd))
+                ToggleWindow(new IntPtr(cliToggleHWnd));
+
+            if (args.Contains(@"--stop"))
+                return;
+
             if (!GlobalMutex.WaitOne(0, true)) {
                 MessageBox.Show(@"An instance of Top Most Friend is already running.", @"Top Most Friend");
                 return;
             }
 
-            Settings.SetDefault(FOREGROUND_HOTKEY_SETTING, ((int)Keys.F << 16) | (int)(Win32ModKeys.MOD_CONTROL | Win32ModKeys.MOD_ALT));
+            Settings.SetDefault(FOREGROUND_HOTKEY_SETTING, 0);
+            Settings.SetDefault(ALWAYS_ADMIN_SETTING, false);
+
+            if (Settings.Get<bool>(ALWAYS_ADMIN_SETTING) && !IsElevated()) {
+                Elevate();
+                return;
+            }
 
             string backgroundPath = Settings.Get(LIST_BACKGROUND_PATH_SETTING, string.Empty);
             Image backgroundImage = null;
@@ -76,14 +96,50 @@ namespace TopMostFriend {
             InitialItems = SysIcon.ContextMenuStrip.Items.Count;
 
             HotKeys = new HotKeyWindow();
-            SetForegroundHotKey(Settings.Get<int>(FOREGROUND_HOTKEY_SETTING));
+
+            try {
+                SetForegroundHotKey(Settings.Get<int>(FOREGROUND_HOTKEY_SETTING));
+            } catch(Win32Exception ex) {
+                Console.WriteLine(@"Hotkey registration failed:");
+                Console.WriteLine(ex);
+            }
 
             Application.Run();
 
-            HotKeys.Dispose();
-            SysIcon.Dispose();
+            Shutdown();
+        }
 
+        public static void Shutdown() {
+            HotKeys?.Dispose();
+            SysIcon?.Dispose();
             GlobalMutex.ReleaseMutex();
+        }
+
+        private static bool? IsElevatedValue;
+
+        public static bool IsElevated() {
+            if (!IsElevatedValue.HasValue) {
+                using (WindowsIdentity identity = WindowsIdentity.GetCurrent())
+                    IsElevatedValue = identity != null && new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
+            }
+
+            return IsElevatedValue.Value;
+        }
+
+        public static void Elevate(string args = null) {
+            if (IsElevated())
+                return;
+
+            Shutdown();
+
+            Process.Start(new ProcessStartInfo {
+                UseShellExecute = true,
+                FileName = Application.ExecutablePath,
+                WorkingDirectory = Environment.CurrentDirectory,
+                Arguments = args ?? string.Empty,
+                Verb = @"runas",
+            });
+            Application.Exit();
         }
 
         public static void SetForegroundHotKey(int keyCode) {
@@ -91,11 +147,16 @@ namespace TopMostFriend {
         }
 
         public static void SetForegroundHotKey(Win32ModKeys mods, Keys key) {
-            Settings.Set(FOREGROUND_HOTKEY_SETTING, ((int)key << 16) | (int)mods);
-            HotKeys.Unregister(FOREGROUND_HOTKEY_ATOM);
-            
-            if(mods != 0 && key != 0)
-                HotKeys.Register(FOREGROUND_HOTKEY_ATOM, mods, key, ToggleForegroundWindow);
+            try {
+                Settings.Set(FOREGROUND_HOTKEY_SETTING, ((int)key << 16) | (int)mods);
+                HotKeys.Unregister(FOREGROUND_HOTKEY_ATOM);
+
+                if (mods != 0 && key != 0)
+                    HotKeys.Register(FOREGROUND_HOTKEY_ATOM, mods, key, ToggleForegroundWindow);
+            } catch (Win32Exception ex) {
+                Debug.WriteLine(@"Hotkey registration failed:");
+                Debug.WriteLine(ex);
+            }
         }
 
         private static void RefreshWindowList() {
@@ -150,12 +211,32 @@ namespace TopMostFriend {
                 0, 0, 0, 0, Win32.SWP_NOMOVE | Win32.SWP_NOSIZE | Win32.SWP_SHOWWINDOW
             );
 
+            if(IsTopMost(hWnd) != state) {
+                MessageBoxButtons buttons = MessageBoxButtons.OK;
+                StringBuilder sb = new StringBuilder();
+                sb.AppendLine(@"Wasn't able to change topmost status on this window.");
+
+                if (!IsElevated()) {
+                    sb.AppendLine(@"Do you want to restart Top Most Friend as administrator and try again?");
+                    buttons = MessageBoxButtons.YesNo;
+                }
+
+                DialogResult result = MessageBox.Show(sb.ToString(), @"Top Most Friend", buttons, MessageBoxIcon.Error);
+
+                if (result == DialogResult.Yes)
+                    Elevate($@"--hwnd={hWnd}");
+                return;
+            }
+
             if (state)
                 Win32.SwitchToThisWindow(hWnd, false);
         }
 
         public static void ToggleForegroundWindow() {
-            IntPtr hWnd = Win32.GetForegroundWindow();
+            ToggleWindow(Win32.GetForegroundWindow());
+        }
+
+        public static void ToggleWindow(IntPtr hWnd) {
             SetTopMost(hWnd, !IsTopMost(hWnd));
         }
 
@@ -182,9 +263,10 @@ namespace TopMostFriend {
 
         private static IEnumerable<WindowEntry> GetWindowList() {
             Process[] procs = Process.GetProcesses();
+            Process self = Process.GetCurrentProcess();
 
             foreach (Process proc in procs) {
-                if (!Settings.Get(LIST_SELF_SETTING, Debugger.IsAttached) && proc.Id == OwnProcess.Id)
+                if (!Settings.Get(LIST_SELF_SETTING, Debugger.IsAttached) && proc == self)
                     continue;
 
                 IEnumerable<IntPtr> hwnds = proc.GetWindowHandles();

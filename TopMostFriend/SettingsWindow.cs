@@ -27,13 +27,15 @@ namespace TopMostFriend {
         public readonly CheckBox FgModAlt;
         public readonly CheckBox FgModShift;
 
+        public readonly CheckBox FlAlwaysAdmin;
+
         public SettingsWindow() {
             Text = @"Top Most Friend Settings";
             Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
             StartPosition = FormStartPosition.CenterScreen;
             FormBorderStyle = FormBorderStyle.FixedSingle;
             AutoScaleMode = AutoScaleMode.Dpi;
-            ClientSize = new Size(410, 113);
+            ClientSize = new Size(410, 163);
             MinimizeBox = MaximizeBox = false;
             MinimumSize = MaximumSize = Size;
 
@@ -67,8 +69,14 @@ namespace TopMostFriend {
                 Size = new Size(Width - 18, 70),
             };
 
+            GroupBox flagsGroup = new GroupBox {
+                Text = @"Flags",
+                Location = new Point(6, 76),
+                Size = new Size(Width - 18, 50),
+            };
+
             Controls.AddRange(new Control[] {
-                applyButton, cancelButton, okButton, hotKeyGroup,
+                applyButton, cancelButton, okButton, hotKeyGroup, flagsGroup,
             });
 
             Label toggleForegroundLabel = new Label {
@@ -125,6 +133,15 @@ namespace TopMostFriend {
             hotKeyGroup.Controls.AddRange(new Control[] {
                 toggleForegroundLabel, FgModCtrl, FgModAlt, FgModShift, fgReset, FgKey,
             });
+
+            FlAlwaysAdmin = new CheckBox {
+                Text = @"Always run as administrator",
+                Location = new Point(10, 20),
+                Checked = Settings.Get(Program.ALWAYS_ADMIN_SETTING, false),
+                AutoSize = true,
+            };
+
+            flagsGroup.Controls.Add(FlAlwaysAdmin);
         }
 
         private void FgReset_Click(object sender, EventArgs e) {
@@ -135,6 +152,7 @@ namespace TopMostFriend {
 
         public void Apply() {
             Settings.Set(Program.FOREGROUND_HOTKEY_SETTING, KeyCode);
+            Settings.Set(Program.ALWAYS_ADMIN_SETTING, FlAlwaysAdmin.Checked);
             Program.SetForegroundHotKey(KeyCode);
         }
 
