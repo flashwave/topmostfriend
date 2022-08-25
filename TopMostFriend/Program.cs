@@ -85,7 +85,7 @@ namespace TopMostFriend {
 
                 if (Environment.OSVersion.Version.Major == 6 && Environment.OSVersion.Version.Minor >= 2)
                     titles.Add(@"Start menu");
-                else if(Environment.OSVersion.Version.Major > 6 || (Environment.OSVersion.Version.Major < 6 && Environment.OSVersion.Version.Minor < 2))
+                else if(Environment.OSVersion.Version.Major > 6 || (Environment.OSVersion.Version.Major <= 6 && Environment.OSVersion.Version.Minor < 2))
                     titles.Add(@"Start");
 
                 Settings.Set(TITLE_BLACKLIST, titles.ToArray());
