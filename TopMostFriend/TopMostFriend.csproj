@@ -44,6 +44,9 @@
     <Compile Include="AboutWindow.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="BlacklistWindow.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="HotKeyWindow.cs">
       <SubType>Form</SubType>
     </Compile>

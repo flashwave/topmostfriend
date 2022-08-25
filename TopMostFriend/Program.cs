@@ -14,6 +14,7 @@ namespace TopMostFriend {
     public static class Program {
         private static NotifyIcon SysIcon;
         private static HotKeyWindow HotKeys;
+        private static Icon OriginalIcon;
         private static int InitialItems = 0;
 
         private const string GUID =
@@ -25,17 +26,25 @@ namespace TopMostFriend {
         private static readonly Mutex GlobalMutex = new Mutex(true, GUID);
 
         public const string FOREGROUND_HOTKEY_ATOM = @"{86795D64-770D-4BD6-AA26-FA638FBAABCF}";
+#if DEBUG
+        public const string FOREGROUND_HOTKEY_SETTING = @"ForegroundHotKey_DEBUG";
+#else
         public const string FOREGROUND_HOTKEY_SETTING = @"ForegroundHotKey";
+#endif
 
         public const string PROCESS_SEPARATOR_SETTING = @"InsertProcessSeparator";
         public const string LIST_SELF_SETTING = @"ListSelf";
         public const string SHOW_EMPTY_WINDOW_SETTING = @"ShowEmptyWindowTitles";
-        public const string SHOW_EXPLORER_SETTING = @"ShowExplorerMisc";
         public const string LIST_BACKGROUND_PATH_SETTING = @"ListBackgroundPath";
         public const string LIST_BACKGROUND_LAYOUT_SETTING = @"ListBackgroundLayout";
         public const string ALWAYS_ADMIN_SETTING = @"RunAsAdministrator";
         public const string TOGGLE_BALLOON_SETTING = @"ShowNotificationOnHotKey";
         public static readonly bool ToggleBalloonDefault = Environment.OSVersion.Version.Major < 10;
+        public const string SHIFT_CLICK_BLACKLIST = @"ShiftClickToBlacklist";
+        public const string TITLE_BLACKLIST = @"TitleBlacklist";
+        public const string SHOW_HOTKEY_ICON = @"ShowHotkeyIcon";
+
+        private static readonly List<string> TitleBlacklist = new List<string>();
 
         [STAThread]
         public static void Main(string[] args) {
@@ -62,14 +71,36 @@ namespace TopMostFriend {
 
             Settings.SetDefault(FOREGROUND_HOTKEY_SETTING, 0);
             Settings.SetDefault(ALWAYS_ADMIN_SETTING, false);
+            Settings.SetDefault(SHIFT_CLICK_BLACKLIST, true);
+            Settings.SetDefault(SHOW_HOTKEY_ICON, true);
             // Defaulting to false on Windows 10 because it uses the stupid, annoying and intrusive new Android style notification system
             // This would fucking piledrive the notification history and also just be annoying in general because intrusive
             Settings.SetDefault(TOGGLE_BALLOON_SETTING, ToggleBalloonDefault);
+
+            if(!Settings.Has(TITLE_BLACKLIST)) {
+                List<string> titles = new List<string> { @"Program Manager" };
+
+                if(Environment.OSVersion.Version.Major >= 10)
+                    titles.Add(@"Windows Shell Experience Host");
+
+                if (Environment.OSVersion.Version.Major == 6 && Environment.OSVersion.Version.Minor >= 2)
+                    titles.Add(@"Start menu");
+                else if(Environment.OSVersion.Version.Major > 6 || (Environment.OSVersion.Version.Major < 6 && Environment.OSVersion.Version.Minor < 2))
+                    titles.Add(@"Start");
+
+                Settings.Set(TITLE_BLACKLIST, titles.ToArray());
+            }
 
             if (Settings.Get<bool>(ALWAYS_ADMIN_SETTING) && !IsElevated()) {
                 Elevate();
                 return;
             }
+
+            TitleBlacklist.Clear();
+            string[] titleBlacklist = Settings.Get(TITLE_BLACKLIST);
+
+            if (titleBlacklist != null)
+                ApplyBlacklistedTitles(titleBlacklist);
 
             string backgroundPath = Settings.Get(LIST_BACKGROUND_PATH_SETTING, string.Empty);
             Image backgroundImage = null;
@@ -82,9 +113,11 @@ namespace TopMostFriend {
                 } catch {}
             }
 
+            OriginalIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+
             SysIcon = new NotifyIcon {
                 Visible = true,
-                Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath),
+                Icon = OriginalIcon,
                 Text = @"Top Most Application Manager",
             };
             SysIcon.MouseDown += SysIcon_MouseDown;
@@ -112,6 +145,33 @@ namespace TopMostFriend {
             Application.Run();
 
             Shutdown();
+        }
+
+        public static void AddBlacklistedTitle(string title) {
+            lock (TitleBlacklist)
+                TitleBlacklist.Add(title);
+        }
+        public static void RemoveBlacklistedTitle(string title) {
+            lock (TitleBlacklist)
+                TitleBlacklist.RemoveAll(x => x == title);
+        }
+        public static void ApplyBlacklistedTitles(string[] arr) {
+            lock (TitleBlacklist) {
+                TitleBlacklist.Clear();
+                TitleBlacklist.AddRange(arr);
+            }
+        }
+        public static bool CheckBlacklistedTitles(string title) {
+            lock (TitleBlacklist)
+                return TitleBlacklist.Contains(title);
+        }
+        public static string[] GetBlacklistedTitles() {
+            lock (TitleBlacklist)
+                return TitleBlacklist.ToArray();
+        }
+        public static void SaveBlacklistedTitles() {
+            lock (TitleBlacklist)
+                Settings.Set(TITLE_BLACKLIST, TitleBlacklist.ToArray());
         }
 
         public static void Shutdown() {
@@ -171,8 +231,8 @@ namespace TopMostFriend {
             IEnumerable<WindowEntry> windows = GetWindowList();
             Process lastProc = null;
             bool procSeparator = Settings.Get(PROCESS_SEPARATOR_SETTING, false);
-            bool showEmptyTitles = Settings.Get(SHOW_EMPTY_WINDOW_SETTING, Debugger.IsAttached);
-            bool showExplorerMisc = Settings.Get(SHOW_EXPLORER_SETTING, Debugger.IsAttached);
+            bool showEmptyTitles = Settings.Get(SHOW_EMPTY_WINDOW_SETTING, false);
+            bool shiftClickBlacklist = Settings.Get(SHIFT_CLICK_BLACKLIST, true);
 
             foreach(WindowEntry window in windows) {
                 if(procSeparator && lastProc != window.Process) {
@@ -187,9 +247,8 @@ namespace TopMostFriend {
                 if (!showEmptyTitles && string.IsNullOrEmpty(title))
                     continue;
 
-                // skip explorer things with specific titles, there's probably a much better way of doing this check
-                // and this will also probably only work properly on english windows but Fuck It what do you want from me
-                if (!showExplorerMisc && window.Process.ProcessName == @"explorer" && (title == @"Program Manager" || title == @"Start"))
+                // Skip items in the blacklist
+                if (CheckBlacklistedTitles(title))
                     continue;
 
                 Image icon = GetWindowIcon(window.Window)?.ToBitmap() ?? null;
@@ -197,7 +256,13 @@ namespace TopMostFriend {
 
                 SysIcon.ContextMenuStrip.Items.Insert(0, new ToolStripMenuItem(
                     title, icon,
-                    new EventHandler((s, e) => SetTopMost(window.Window, !isTopMost))
+                    new EventHandler((s, e) => {
+                        if (shiftClickBlacklist && Control.ModifierKeys.HasFlag(Keys.Shift)) {
+                            AddBlacklistedTitle(title);
+                            SaveBlacklistedTitles();
+                        } else
+                            SetTopMost(window.Window, !isTopMost);
+                    })
                 ) {
                     CheckOnClick = true,
                     Checked = isTopMost,
@@ -208,6 +273,37 @@ namespace TopMostFriend {
         public static bool IsTopMost(IntPtr hWnd) {
             IntPtr flags = Win32.GetWindowLongPtr(hWnd, Win32.GWL_EXSTYLE);
             return (flags.ToInt32() & Win32.WS_EX_TOPMOST) > 0;
+        }
+
+        private class ActionTimeout {
+            private readonly Action Action;
+            private bool Continue = true;
+            private int Remaining = 0;
+            private const int STEP = 500;
+
+            public ActionTimeout(Action action, int timeout) {
+                Action = action ?? throw new ArgumentNullException(nameof(action));
+                if (timeout < 1)
+                    throw new ArgumentException(@"Timeout must be a positive integer.", nameof(timeout));
+                Remaining = timeout;
+                new Thread(ThreadBody) { IsBackground = true }.Start();
+            }
+
+            private void ThreadBody() {
+                do {
+                    Thread.Sleep(STEP);
+                    Remaining -= STEP;
+
+                    if (!Continue)
+                        return;
+                } while (Remaining > 0);
+
+                Action.Invoke();
+            }
+
+            public void Cancel() {
+                Continue = false;
+            }
         }
 
         public static bool SetTopMost(IntPtr hWnd, bool state) {
@@ -239,6 +335,8 @@ namespace TopMostFriend {
             return true;
         }
 
+        private static ActionTimeout IconTimeout;
+
         public static void ToggleForegroundWindow() {
             IntPtr hWnd = Win32.GetForegroundWindow();
 
@@ -246,12 +344,21 @@ namespace TopMostFriend {
                 if (Settings.Get(TOGGLE_BALLOON_SETTING, false)) {
                     string title = Win32.GetWindowTextString(hWnd);
 
-                    SysIcon.ShowBalloonTip(
-                        500,
-                        IsTopMost(hWnd) ? @"Always on top" : @"No longer always on top",
+                    SysIcon?.ShowBalloonTip(
+                        2000, IsTopMost(hWnd) ? @"Always on top" : @"No longer always on top",
                         string.IsNullOrEmpty(title) ? @"Window has no title." : title,
                         ToolTipIcon.Info
                     );
+                }
+
+                if (SysIcon != null && Settings.Get(SHOW_HOTKEY_ICON, true)) {
+                    Icon icon = GetWindowIcon(hWnd);
+
+                    if (icon != null) {
+                        IconTimeout?.Cancel();
+                        SysIcon.Icon = icon;
+                        IconTimeout = new ActionTimeout(() => SysIcon.Icon = OriginalIcon, 2000);
+                    }
                 }
             }
         }
