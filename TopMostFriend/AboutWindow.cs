@@ -9,16 +9,13 @@ namespace TopMostFriend {
         private const int BUTTON_HEIGHT = 23;
         private const int BUTTON_WIDTH = 70;
 
-        public const int WM_NCLBUTTONDOWN = 0xA1;
-        public const int HT_CAPTION = 0x02;
-
         public static void Display() {
             using (AboutWindow about = new AboutWindow())
                 about.ShowDialog();
         }
 
         public AboutWindow() {
-            Text = $@"About Top Most Friend";
+            Text = @"About Top Most Friend";
             Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
             BackgroundImage = Properties.Resources.about;
             StartPosition = FormStartPosition.CenterScreen;
@@ -81,7 +78,7 @@ namespace TopMostFriend {
             Controls.Add(creditButtonfff);
 
             Controls.Add(new Label {
-                Text = Application.ProductVersion,
+                Text = @"v" + Application.ProductVersion.Substring(0, Application.ProductVersion.Length - 2), // cut off the last dingus
                 TextAlign = ContentAlignment.MiddleLeft,
                 AutoSize = true,
                 Location = new Point(127, 97),
@@ -93,8 +90,8 @@ namespace TopMostFriend {
         protected override void OnMouseDown(MouseEventArgs e) {
             base.OnMouseDown(e);
 
-            Program.ReleaseCapture();
-            Program.SendMessage(Handle, WM_NCLBUTTONDOWN, HT_CAPTION, 0);
+            Win32.ReleaseCapture();
+            Win32.SendMessage(Handle, Win32.WM_NCLBUTTONDOWN, Win32.HT_CAPTION, 0);
         }
     }
 }

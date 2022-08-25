@@ -2,23 +2,60 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
-using System.Runtime.InteropServices;
-using System.Text;
+using System.IO;
+using System.Threading;
 using System.Windows.Forms;
 
 namespace TopMostFriend {
     public static class Program {
         private static NotifyIcon SysIcon;
+        private static HotKeyWindow HotKeys;
         private static readonly Process OwnProcess = Process.GetCurrentProcess();
         private static int InitialItems = 0;
+
+        private const string GUID =
+#if DEBUG
+            @"{1A22D9CA-2AA9-48F2-B007-3A48CF205CDD}";
+#else
+            @"{5BE25191-E1E2-48A7-B038-E986CD989E91}";
+#endif
+        private static readonly Mutex GlobalMutex = new Mutex(true, GUID);
+
+        public const string FOREGROUND_HOTKEY_ATOM = @"{86795D64-770D-4BD6-AA26-FA638FBAABCF}";
+        public const string FOREGROUND_HOTKEY_SETTING = @"ForegroundHotKey";
+
+        public const string PROCESS_SEPARATOR_SETTING = @"InsertProcessSeparator";
+        public const string LIST_SELF_SETTING = @"ListSelf";
+        public const string SHOW_EMPTY_WINDOW_SETTING = @"ShowEmptyWindowTitles";
+        public const string SHOW_EXPLORER_SETTING = @"ShowExplorerMisc";
+        public const string LIST_BACKGROUND_PATH_SETTING = @"ListBackgroundPath";
+        public const string LIST_BACKGROUND_LAYOUT_SETTING = @"ListBackgroundLayout";
 
         [STAThread]
         public static void Main() {
             if (Environment.OSVersion.Version.Major >= 6)
-                SetProcessDPIAware();
+                Win32.SetProcessDPIAware();
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+
+            if (!GlobalMutex.WaitOne(0, true)) {
+                MessageBox.Show(@"An instance of Top Most Friend is already running.", @"Top Most Friend");
+                return;
+            }
+
+            Settings.SetDefault(FOREGROUND_HOTKEY_SETTING, ((int)Keys.F << 16) | (int)(Win32ModKeys.MOD_CONTROL | Win32ModKeys.MOD_ALT));
+
+            string backgroundPath = Settings.Get(LIST_BACKGROUND_PATH_SETTING, string.Empty);
+            Image backgroundImage = null;
+            ImageLayout backgroundLayout = 0;
+
+            if(File.Exists(backgroundPath)) {
+                try {
+                    backgroundImage = Image.FromFile(backgroundPath);
+                    backgroundLayout = (ImageLayout)Settings.Get(LIST_BACKGROUND_LAYOUT_SETTING, 0);
+                } catch {}
+            }
 
             SysIcon = new NotifyIcon {
                 Visible = true,
@@ -26,17 +63,39 @@ namespace TopMostFriend {
                 Text = @"Top Most Application Manager",
             };
             SysIcon.MouseDown += SysIcon_MouseDown;
-            SysIcon.ContextMenuStrip = new ContextMenuStrip();
+            SysIcon.ContextMenuStrip = new ContextMenuStrip {
+                BackgroundImage = backgroundImage,
+                BackgroundImageLayout = backgroundLayout,
+            };
             SysIcon.ContextMenuStrip.Items.AddRange(new ToolStripItem[] {
                 new ToolStripSeparator(),
+                new ToolStripMenuItem(@"&Settings", Properties.Resources.cog, new EventHandler((s, e) => SettingsWindow.Display())),
                 new ToolStripMenuItem(@"&About", Properties.Resources.help, new EventHandler((s, e) => AboutWindow.Display())),
                 new ToolStripMenuItem(@"&Quit", Properties.Resources.door_in, new EventHandler((s, e) => Application.Exit())),
             });
             InitialItems = SysIcon.ContextMenuStrip.Items.Count;
 
+            HotKeys = new HotKeyWindow();
+            SetForegroundHotKey(Settings.Get<int>(FOREGROUND_HOTKEY_SETTING));
+
             Application.Run();
 
+            HotKeys.Dispose();
             SysIcon.Dispose();
+
+            GlobalMutex.ReleaseMutex();
+        }
+
+        public static void SetForegroundHotKey(int keyCode) {
+            SetForegroundHotKey((Win32ModKeys)(keyCode & 0xFFFF), (Keys)((keyCode & 0xFFFF0000) >> 16));
+        }
+
+        public static void SetForegroundHotKey(Win32ModKeys mods, Keys key) {
+            Settings.Set(FOREGROUND_HOTKEY_SETTING, ((int)key << 16) | (int)mods);
+            HotKeys.Unregister(FOREGROUND_HOTKEY_ATOM);
+            
+            if(mods != 0 && key != 0)
+                HotKeys.Register(FOREGROUND_HOTKEY_ATOM, mods, key, ToggleForegroundWindow);
         }
 
         private static void RefreshWindowList() {
@@ -44,54 +103,76 @@ namespace TopMostFriend {
                 SysIcon.ContextMenuStrip.Items.RemoveAt(0);
 
             IEnumerable<WindowEntry> windows = GetWindowList();
+            Process lastProc = null;
+            bool procSeparator = Settings.Get(PROCESS_SEPARATOR_SETTING, false);
+            bool showEmptyTitles = Settings.Get(SHOW_EMPTY_WINDOW_SETTING, Debugger.IsAttached);
+            bool showExplorerMisc = Settings.Get(SHOW_EXPLORER_SETTING, Debugger.IsAttached);
 
             foreach(WindowEntry window in windows) {
-                string title = GetWindowTextLazy(window.Window);
+                if(procSeparator && lastProc != window.Process) {
+                    if (lastProc != null)
+                        SysIcon.ContextMenuStrip.Items.Insert(0, new ToolStripSeparator());
+                    lastProc = window.Process;
+                }
 
+                string title = Win32.GetWindowTextString(window.Window);
+                
                 // i think it's a fair assumption that any visible window worth a damn has a window title
-                if (string.IsNullOrEmpty(title))
+                if (!showEmptyTitles && string.IsNullOrEmpty(title))
                     continue;
 
                 // skip explorer things with specific titles, there's probably a much better way of doing this check
                 // and this will also probably only work properly on english windows but Fuck It what do you want from me
-                if (window.Process.ProcessName == @"explorer" && (title == @"Program Manager" || title == @"Start"))
+                if (!showExplorerMisc && window.Process.ProcessName == @"explorer" && (title == @"Program Manager" || title == @"Start"))
                     continue;
 
-                IntPtr flags = GetWindowLongPtr(window.Window, GWL_EXSTYLE);
-                bool isTopMost = (flags.ToInt32() & WS_EX_TOPMOST) > 0;
-
-                Image icon = GetWindowIcon(window.Window).ToBitmap();
+                Image icon = GetWindowIcon(window.Window)?.ToBitmap() ?? null;
+                bool isTopMost = IsTopMost(window.Window);
 
                 SysIcon.ContextMenuStrip.Items.Insert(0, new ToolStripMenuItem(
-                    title, icon, new EventHandler((s, e) => {
-                    SetWindowPos(
-                        window.Window, new IntPtr(isTopMost ? HWND_NOTOPMOST : HWND_TOPMOST),
-                        0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW
-                    );
-
-                    if (!isTopMost)
-                        SwitchToThisWindow(window.Window, false);
-                })) {
+                    title, icon,
+                    new EventHandler((s, e) => SetTopMost(window.Window, !isTopMost))
+                ) {
                     CheckOnClick = true,
                     Checked = isTopMost,
                 });
             }
         }
 
+        public static bool IsTopMost(IntPtr hWnd) {
+            IntPtr flags = Win32.GetWindowLongPtr(hWnd, Win32.GWL_EXSTYLE);
+            return (flags.ToInt32() & Win32.WS_EX_TOPMOST) > 0;
+        }
+
+        public static void SetTopMost(IntPtr hWnd, bool state) {
+            Win32.SetWindowPos(
+                hWnd, new IntPtr(state ? Win32.HWND_TOPMOST : Win32.HWND_NOTOPMOST),
+                0, 0, 0, 0, Win32.SWP_NOMOVE | Win32.SWP_NOSIZE | Win32.SWP_SHOWWINDOW
+            );
+
+            if (state)
+                Win32.SwitchToThisWindow(hWnd, false);
+        }
+
+        public static void ToggleForegroundWindow() {
+            IntPtr hWnd = Win32.GetForegroundWindow();
+            SetTopMost(hWnd, !IsTopMost(hWnd));
+        }
+
         private static Icon GetWindowIcon(IntPtr hWnd) {
-            IntPtr hIcon = SendMessage(hWnd, WM_GETICON, ICON_SMALL2, 0);
+            IntPtr hIcon = Win32.SendMessage(hWnd, Win32.WM_GETICON, Win32.ICON_SMALL2, 0);
 
             if(hIcon == IntPtr.Zero) {
-                hIcon = SendMessage(hWnd, WM_GETICON, ICON_SMALL, 0);
+                hIcon = Win32.SendMessage(hWnd, Win32.WM_GETICON, Win32.ICON_SMALL, 0);
 
                 if(hIcon == IntPtr.Zero) {
-                    hIcon = SendMessage(hWnd, WM_GETICON, ICON_BIG, 0);
+                    hIcon = Win32.SendMessage(hWnd, Win32.WM_GETICON, Win32.ICON_BIG, 0);
 
                     if(hIcon == IntPtr.Zero) {
-                        hIcon = GetClassLongPtr(hWnd, GCL_HICON);
+                        hIcon = Win32.GetClassLongPtr(hWnd, Win32.GCL_HICON);
 
                         if (hIcon == IntPtr.Zero)
-                            hIcon = GetClassLongPtr(hWnd, GCL_HICONSM);
+                            hIcon = Win32.GetClassLongPtr(hWnd, Win32.GCL_HICONSM);
                     }
                 }
             }
@@ -103,13 +184,13 @@ namespace TopMostFriend {
             Process[] procs = Process.GetProcesses();
 
             foreach (Process proc in procs) {
-                if (proc.Id == OwnProcess.Id)
+                if (!Settings.Get(LIST_SELF_SETTING, Debugger.IsAttached) && proc.Id == OwnProcess.Id)
                     continue;
 
                 IEnumerable<IntPtr> hwnds = proc.GetWindowHandles();
 
                 foreach (IntPtr ptr in hwnds) {
-                    if (!IsWindowVisible(ptr))
+                    if (!Win32.IsWindowVisible(ptr))
                         continue;
 
                     yield return new WindowEntry(proc, ptr);
@@ -128,98 +209,23 @@ namespace TopMostFriend {
         }
 
         private static void SysIcon_MouseDown(object sender, MouseEventArgs e) {
-            if (e.Button != MouseButtons.Right)
-                return;
+            if (e.Button.HasFlag(MouseButtons.Left))
+                ToggleForegroundWindow();
 
-            RefreshWindowList();
+            if (e.Button.HasFlag(MouseButtons.Right))
+                RefreshWindowList();
         }
 
         public static IEnumerable<IntPtr> GetWindowHandles(this Process proc) {
             IntPtr hwndCurr = IntPtr.Zero;
 
             do {
-                hwndCurr = FindWindowEx(IntPtr.Zero, hwndCurr, null, null);
-                GetWindowThreadProcessId(hwndCurr, out uint procId);
-
+                hwndCurr = Win32.FindWindowEx(IntPtr.Zero, hwndCurr, null, null);
+                Win32.GetWindowThreadProcessId(hwndCurr, out uint procId);
+                
                 if(proc.Id == procId)
                     yield return hwndCurr;
             } while (hwndCurr != IntPtr.Zero);
         }
-
-        private const int HWND_TOPMOST = -1;
-        private const int HWND_NOTOPMOST = -2;
-        private const int SWP_NOSIZE = 0x0001;
-        private const int SWP_NOMOVE = 0x0002;
-        private const int SWP_SHOWWINDOW = 0x0040;
-        private const int GWL_EXSTYLE = -20;
-        private const int GCL_HICON = -14;
-        private const int GCL_HICONSM = -34;
-        private const int WS_EX_TOPMOST = 0x08;
-        private const int WM_GETICON = 0x7F;
-        private const int ICON_SMALL = 0;
-        private const int ICON_BIG = 1;
-        private const int ICON_SMALL2 = 2;
-
-        [DllImport(@"user32")]
-        private static extern bool SetProcessDPIAware();
-
-        [DllImport(@"user32", SetLastError = true)]
-        private static extern IntPtr FindWindowEx(IntPtr hwndParent, IntPtr hwndChildAfter, string lpszClass, string lpszWindow);
-
-        [DllImport(@"user32", SetLastError = true)]
-        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
-
-        private static IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex) {
-            if (IntPtr.Size == 8)
-                return GetWindowLongPtr64(hWnd, nIndex);
-            return new IntPtr(GetWindowLong32(hWnd, nIndex));
-        }
-
-        [DllImport(@"user32", EntryPoint = "GetWindowLong")]
-        private static extern int GetWindowLong32(IntPtr hWnd, int nIndex);
-
-        [DllImport(@"user32", EntryPoint = "GetWindowLongPtr")]
-        private static extern IntPtr GetWindowLongPtr64(IntPtr hWnd, int nIndex);
-
-        [DllImport(@"user32")]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool IsWindowVisible(IntPtr hWnd);
-
-        [DllImport(@"user32", CharSet = CharSet.Auto, SetLastError = true)]
-        private static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
-
-        [DllImport(@"user32", SetLastError = true, CharSet = CharSet.Auto)]
-        private static extern int GetWindowTextLength(IntPtr hWnd);
-
-        private static string GetWindowTextLazy(IntPtr hwnd) {
-            int length = GetWindowTextLength(hwnd) + 1;
-            StringBuilder sb = new StringBuilder(length);
-            GetWindowText(hwnd, sb, length);
-            return sb.ToString();
-        }
-
-        private static IntPtr GetClassLongPtr(IntPtr hWnd, int nIndex) {
-            if (IntPtr.Size > 4)
-                return GetClassLongPtr64(hWnd, nIndex);
-            return new IntPtr(GetClassLongPtr32(hWnd, nIndex));
-        }
-
-        [DllImport(@"user32", EntryPoint = "GetClassLong")]
-        private static extern uint GetClassLongPtr32(IntPtr hWnd, int nIndex);
-
-        [DllImport(@"user32", EntryPoint = "GetClassLongPtr")]
-        private static extern IntPtr GetClassLongPtr64(IntPtr hWnd, int nIndex);
-
-        [DllImport(@"user32", SetLastError = true)]
-        private static extern void SwitchToThisWindow(IntPtr hWnd, bool fAltTab);
-
-        [DllImport(@"user32", SetLastError = true)]
-        private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, int uFlags);
-
-        [DllImport(@"user32", CharSet = CharSet.Auto, SetLastError = false)]
-        public static extern IntPtr SendMessage(IntPtr hWnd, int Msg, int wParam, int lParam);
-
-        [DllImport(@"user32")]
-        public static extern bool ReleaseCapture();
     }
 }
