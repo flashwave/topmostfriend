@@ -9,7 +9,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyDescription("Provides a dingus that lets you make anything topmost.")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("flashwave")]
-[assembly: AssemblyProduct("TopMostFriend.Properties")]
+[assembly: AssemblyProduct("TopMostFriend")]
 [assembly: AssemblyCopyright("flashwave 2020")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -29,5 +29,5 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.2.0.0")]
-[assembly: AssemblyFileVersion("1.2.0.0")]
+[assembly: AssemblyVersion("1.3.0.0")]
+[assembly: AssemblyFileVersion("1.3.0.0")]

@@ -1,9 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
-using System.Runtime.InteropServices;
-using System.Text;
 using System.Windows.Forms;
 
 namespace TopMostFriend {
@@ -28,6 +24,7 @@ namespace TopMostFriend {
         public readonly CheckBox FgModShift;
 
         public readonly CheckBox FlAlwaysAdmin;
+        public readonly CheckBox FlToggleNotification;
 
         public SettingsWindow() {
             Text = @"Top Most Friend Settings";
@@ -35,7 +32,7 @@ namespace TopMostFriend {
             StartPosition = FormStartPosition.CenterScreen;
             FormBorderStyle = FormBorderStyle.FixedSingle;
             AutoScaleMode = AutoScaleMode.Dpi;
-            ClientSize = new Size(410, 163);
+            ClientSize = new Size(410, 183);
             MinimizeBox = MaximizeBox = false;
             MinimumSize = MaximumSize = Size;
 
@@ -72,7 +69,7 @@ namespace TopMostFriend {
             GroupBox flagsGroup = new GroupBox {
                 Text = @"Flags",
                 Location = new Point(6, 76),
-                Size = new Size(Width - 18, 50),
+                Size = new Size(Width - 18, 70),
             };
 
             Controls.AddRange(new Control[] {
@@ -140,8 +137,14 @@ namespace TopMostFriend {
                 Checked = Settings.Get(Program.ALWAYS_ADMIN_SETTING, false),
                 AutoSize = true,
             };
+            FlToggleNotification = new CheckBox {
+                Text = @"Show notification when using toggle hotkey",
+                Location = new Point(10, 40),
+                Checked = Settings.Get(Program.TOGGLE_BALLOON_SETTING, Program.ToggleBalloonDefault),
+                AutoSize = true,
+            };
 
-            flagsGroup.Controls.Add(FlAlwaysAdmin);
+            flagsGroup.Controls.AddRange(new[] { FlAlwaysAdmin, FlToggleNotification });
         }
 
         private void FgReset_Click(object sender, EventArgs e) {

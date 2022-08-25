@@ -34,6 +34,8 @@ namespace TopMostFriend {
         public const string LIST_BACKGROUND_PATH_SETTING = @"ListBackgroundPath";
         public const string LIST_BACKGROUND_LAYOUT_SETTING = @"ListBackgroundLayout";
         public const string ALWAYS_ADMIN_SETTING = @"RunAsAdministrator";
+        public const string TOGGLE_BALLOON_SETTING = @"ShowNotificationOnHotKey";
+        public static readonly bool ToggleBalloonDefault = Environment.OSVersion.Version.Major < 10;
 
         [STAThread]
         public static void Main(string[] args) {
@@ -60,6 +62,9 @@ namespace TopMostFriend {
 
             Settings.SetDefault(FOREGROUND_HOTKEY_SETTING, 0);
             Settings.SetDefault(ALWAYS_ADMIN_SETTING, false);
+            // Defaulting to false on Windows 10 because it uses the stupid, annoying and intrusive new Android style notification system
+            // This would fucking piledrive the notification history and also just be annoying in general because intrusive
+            Settings.SetDefault(TOGGLE_BALLOON_SETTING, ToggleBalloonDefault);
 
             if (Settings.Get<bool>(ALWAYS_ADMIN_SETTING) && !IsElevated()) {
                 Elevate();
@@ -205,7 +210,7 @@ namespace TopMostFriend {
             return (flags.ToInt32() & Win32.WS_EX_TOPMOST) > 0;
         }
 
-        public static void SetTopMost(IntPtr hWnd, bool state) {
+        public static bool SetTopMost(IntPtr hWnd, bool state) {
             Win32.SetWindowPos(
                 hWnd, new IntPtr(state ? Win32.HWND_TOPMOST : Win32.HWND_NOTOPMOST),
                 0, 0, 0, 0, Win32.SWP_NOMOVE | Win32.SWP_NOSIZE | Win32.SWP_SHOWWINDOW
@@ -225,19 +230,34 @@ namespace TopMostFriend {
 
                 if (result == DialogResult.Yes)
                     Elevate($@"--hwnd={hWnd}");
-                return;
+                return false;
             }
 
             if (state)
                 Win32.SwitchToThisWindow(hWnd, false);
+
+            return true;
         }
 
         public static void ToggleForegroundWindow() {
-            ToggleWindow(Win32.GetForegroundWindow());
+            IntPtr hWnd = Win32.GetForegroundWindow();
+
+            if (ToggleWindow(hWnd)) {
+                if (Settings.Get(TOGGLE_BALLOON_SETTING, false)) {
+                    string title = Win32.GetWindowTextString(hWnd);
+
+                    SysIcon.ShowBalloonTip(
+                        500,
+                        IsTopMost(hWnd) ? @"Always on top" : @"No longer always on top",
+                        string.IsNullOrEmpty(title) ? @"Window has no title." : title,
+                        ToolTipIcon.Info
+                    );
+                }
+            }
         }
 
-        public static void ToggleWindow(IntPtr hWnd) {
-            SetTopMost(hWnd, !IsTopMost(hWnd));
+        public static bool ToggleWindow(IntPtr hWnd) {
+            return SetTopMost(hWnd, !IsTopMost(hWnd));
         }
 
         private static Icon GetWindowIcon(IntPtr hWnd) {
@@ -291,9 +311,6 @@ namespace TopMostFriend {
         }
 
         private static void SysIcon_MouseDown(object sender, MouseEventArgs e) {
-            if (e.Button.HasFlag(MouseButtons.Left))
-                ToggleForegroundWindow();
-
             if (e.Button.HasFlag(MouseButtons.Right))
                 RefreshWindowList();
         }
