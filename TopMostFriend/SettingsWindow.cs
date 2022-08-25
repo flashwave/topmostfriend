@@ -22,6 +22,7 @@ namespace TopMostFriend {
         public readonly CheckBox FgModCtrl;
         public readonly CheckBox FgModAlt;
         public readonly CheckBox FgModShift;
+        public readonly CheckBox FgModWindows;
 
         public readonly CheckBox FlAlwaysAdmin;
         public readonly CheckBox FlToggleNotification;
@@ -34,7 +35,7 @@ namespace TopMostFriend {
             StartPosition = FormStartPosition.CenterScreen;
             FormBorderStyle = FormBorderStyle.FixedSingle;
             AutoScaleMode = AutoScaleMode.Dpi;
-            ClientSize = new Size(410, 278);
+            ClientSize = new Size(430, 278);
             MinimizeBox = MaximizeBox = false;
             MinimumSize = MaximumSize = Size;
 
@@ -140,8 +141,19 @@ namespace TopMostFriend {
             };
             FgModShift.Click += FgModShift_Click;
 
+            FgModWindows = new CheckBox {
+                Text = @"WIN",
+                Location = new Point(mod_x + 150, mod_y),
+                Checked = (KeyCode & (int)Win32ModKeys.MOD_WIN) > 0,
+                Appearance = FgModCtrl.Appearance,
+                Size = FgModCtrl.Size,
+                TextAlign = FgModCtrl.TextAlign,
+                TabIndex = 105,
+            };
+            FgModWindows.Click += FgModWindows_Click;
+
             hotKeyGroup.Controls.AddRange(new Control[] {
-                toggleForegroundLabel, FgModCtrl, FgModAlt, FgModShift, fgReset, FgKey,
+                toggleForegroundLabel, FgModCtrl, FgModAlt, FgModShift, FgModWindows, fgReset, FgKey,
             });
 
             FlAlwaysAdmin = new CheckBox {
@@ -241,6 +253,15 @@ namespace TopMostFriend {
                     KeyCode |= (int)Win32ModKeys.MOD_SHIFT;
                 else
                     KeyCode &= ~(int)Win32ModKeys.MOD_SHIFT;
+            }
+        }
+
+        private void FgModWindows_Click(object sender, EventArgs e) {
+            if(sender is CheckBox cb) {
+                if(cb.Checked)
+                    KeyCode |= (int)Win32ModKeys.MOD_WIN;
+                else
+                    KeyCode &= ~(int)Win32ModKeys.MOD_WIN;
             }
         }
 
