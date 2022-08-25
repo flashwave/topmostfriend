@@ -62,6 +62,7 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Win32.cs" />
+    <Compile Include="WindowInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System" />
@@ -78,6 +79,7 @@
     <None Include="Resources\door_in.png" />
     <None Include="Resources\about.png" />
     <None Include="Resources\cog.png" />
+    <None Include="Resources\arrow_refresh.png" />
     <Content Include="TopMostFriend.ico" />
   </ItemGroup>
   <ItemGroup>

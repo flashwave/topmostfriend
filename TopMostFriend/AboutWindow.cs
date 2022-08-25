@@ -45,6 +45,15 @@ namespace TopMostFriend {
             websiteButton.Click += (s, e) => Process.Start(@"https://flash.moe/topmostfriend");
             Controls.Add(websiteButton);
 
+            Button donateButton = new Button {
+                Text = @"Donate",
+                Size = new Size(BUTTON_WIDTH, BUTTON_HEIGHT),
+                TabIndex = ++tabIndex,
+            };
+            donateButton.Location = new Point(websiteButton.Left - donateButton.Width - BUTTON_SPACING, closeButton.Top);
+            donateButton.Click += (s, e) => Process.Start(@"https://flash.moe/donate");
+            Controls.Add(donateButton);
+
             Button creditButton = new Button {
                 Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top,
                 Text = string.Empty,

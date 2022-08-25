@@ -43,6 +43,8 @@ namespace TopMostFriend {
         public const int ICON_BIG = 1;
         public const int ICON_SMALL2 = 2;
 
+        public delegate bool EnumWindowsProc([In] IntPtr hWnd, [In] int lParam);
+
         [DllImport(@"user32")]
         public static extern bool SetProcessDPIAware();
 
@@ -113,6 +115,9 @@ namespace TopMostFriend {
 
         [DllImport(@"user32", SetLastError = true)]
         public static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+
+        [DllImport(@"user32", SetLastError = true)]
+        public static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, int lParam);
 
         [DllImport(@"kernel32", SetLastError = true, CharSet = CharSet.Auto)]
         public static extern ushort GlobalAddAtom(string lpString);

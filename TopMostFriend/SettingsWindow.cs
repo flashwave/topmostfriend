@@ -28,6 +28,7 @@ namespace TopMostFriend {
         public readonly CheckBox FlToggleNotification;
         public readonly CheckBox FlShiftClickBlacklist;
         public readonly CheckBox FlShowHotkeyIcon;
+        public readonly CheckBox FlShowWindowList;
 
         public SettingsWindow() {
             Text = @"Top Most Friend Settings";
@@ -35,7 +36,7 @@ namespace TopMostFriend {
             StartPosition = FormStartPosition.CenterScreen;
             FormBorderStyle = FormBorderStyle.FixedSingle;
             AutoScaleMode = AutoScaleMode.Dpi;
-            ClientSize = new Size(430, 278);
+            ClientSize = new Size(430, 298);
             MinimizeBox = MaximizeBox = false;
             MinimumSize = MaximumSize = Size;
 
@@ -72,17 +73,18 @@ namespace TopMostFriend {
             GroupBox flagsGroup = new GroupBox {
                 Text = @"Flags",
                 Location = new Point(6, 76),
-                Size = new Size(Width - 18, 110),
+                Size = new Size(Width - 18, 130),
             };
 
             GroupBox blackListGroup = new GroupBox {
                 Text = @"Blacklist",
-                Location = new Point(6, 186),
+                Location = new Point(6, 206),
                 Size = new Size(Width - 18, 55),
             };
 
             Controls.AddRange(new Control[] {
-                applyButton, cancelButton, okButton, hotKeyGroup, flagsGroup, blackListGroup,
+                applyButton, cancelButton, okButton,
+                hotKeyGroup, flagsGroup, blackListGroup,
             });
 
             Label toggleForegroundLabel = new Label {
@@ -184,8 +186,18 @@ namespace TopMostFriend {
                 AutoSize = true,
                 TabIndex = 204,
             };
+            FlShowWindowList = new CheckBox {
+                Text = @"Show list of open windows in the task bar context menu",
+                Location = new Point(10, 100),
+                Checked = Settings.Get(Program.SHOW_WINDOW_LIST, true),
+                AutoSize = true,
+                TabIndex = 205,
+            };
 
-            flagsGroup.Controls.AddRange(new[] { FlAlwaysAdmin, FlToggleNotification, FlShiftClickBlacklist, FlShowHotkeyIcon, });
+            flagsGroup.Controls.AddRange(new[] {
+                FlAlwaysAdmin, FlToggleNotification, FlShiftClickBlacklist,
+                FlShowHotkeyIcon, FlShowWindowList,
+            });
 
             Button titleBlacklist = new Button {
                 Size = new Size(120, 23),
@@ -217,6 +229,7 @@ namespace TopMostFriend {
             Settings.Set(Program.TOGGLE_BALLOON_SETTING, FlToggleNotification.Checked);
             Settings.Set(Program.SHIFT_CLICK_BLACKLIST, FlShiftClickBlacklist.Checked);
             Settings.Set(Program.SHOW_HOTKEY_ICON, FlShowHotkeyIcon.Checked);
+            Settings.Set(Program.SHOW_WINDOW_LIST, FlShowWindowList.Checked);
             Program.SetForegroundHotKey(KeyCode);
         }
 
