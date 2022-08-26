@@ -1,0 +1,109 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Language>
+    <Info>
+        <Id>en-GB</Id>
+        <NameNative>British English</NameNative>
+        <NameEnglish>British English</NameEnglish>
+        <TargetVersion>1.6.0</TargetVersion>
+    </Info>
+    <Strings>
+        <String name="AlreadyRunning">An instance of {0} is already running.</String>
+
+        <String name="TrayRefresh">&amp;Refresh</String>
+        <String name="TraySettings">&amp;Settings</String>
+        <String name="TrayAbout">&amp;About</String>
+        <String name="TrayQuit">&amp;Quit</String>
+
+        <String name="NotifyOnTop">Now always on top</String>
+        <String name="NotifyNoLonger">No longer always on top</String>
+        <String name="NotifyNoTitle">Window has no title.</String>
+        
+        <String name="ErrUnableAlterStatus1">Wasn't able to change always on top status on this window.</String>
+        <String name="ErrUnableAlterStatus2">Do you want to try again as an Administrator? A User Account Control dialog will pop up after selecting Yes.</String>
+        <String name="ErrUnableAlterStatusProtected">{0} was still unable to change always on top status for the window. It might be protected by Windows.</String>
+
+        <String name="AboutTitle">About {0}</String>
+        <String name="AboutClose">Close</String>
+        <String name="AboutWebsite">Website</String>
+        <String name="AboutDonate">Donate</String>
+
+        <String name="SettingsTitle">{0} Settings</String>
+        <String name="SettingsApply">Apply</String>
+        <String name="SettingsCancel">Cancel</String>
+        <String name="SettingsOk">OK</String>
+
+        <String name="SettingsHotKeysTitle">Hot Keys</String>
+        <String name="SettingsHotKeysReset">Reset</String>
+        <String name="SettingsHotKeysToggle">Toggle always on top status on active window</String>
+        
+        <String name="SettingsOptionsTitle">Options</String>
+        <String name="SettingsOptionsToggleNotify">Show notification when using toggle hot key</String>
+        <String name="SettingsOptionsToggleNotifyIcon">Show icon of window affected by hot key</String>
+        <String name="SettingsOptionsElevatedRetry">Always retry changing always on top status as Administrator on first failure</String>
+        <String name="SettingsOptionsShiftBlacklist">SHIFT+CLICK items in the tray area list to add to the title blacklist</String>
+        <String name="SettingsOptionsRevertOnExit">Revert status to before {0} altered them on exit</String>
+        <String name="SettingsOptionsShowTrayList">Show list of open windows in the tray area menu</String>
+        <String name="SettingsOptionsAlwaysAdmin">Always run as Administrator</String>
+
+        <String name="SettingsLanguageTitle">Language</String>
+        <String name="SettingsLanguageChangedInfo">You should restart {0} for the language change to fully take effect. A lot of text will still appear in the previously selected language.</String>
+        
+        <String name="SettingsOtherTitle">Other</String>
+        <String name="SettingsOtherBlacklistButton">Manage Blacklist...</String>
+        <String name="SettingsOtherBlacklistWindowTitle">Title Blacklist</String>
+        <String name="SettingsOtherStartupButton">Start with Windows...</String>
+        <String name="SettingsOtherStartupConfirm">
+Should {0} start with Windows?
+Clicking Yes will create a shortcut to the {0} in your Start-up folder, clicking No will delete the shortcut.
+Make sure you've placed your {0} executable in a permanent location before clicking Yes.
+        </String>
+        <String name="SettingsOtherResetButton">Reset All Settings...</String>
+        <String name="SettingsOtherResetConfirm">
+This will reset all {0} settings and restart the application.
+Are you absolutely sure?
+        </String>
+
+        <String name="BlacklistAdd">Add</String>
+        <String name="BlacklistEdit">Edit</String>
+        <String name="BlacklistRemove">Remove</String>
+        <String name="BlacklistCancel">Cancel</String>
+        <String name="BlacklistDone">Done</String>
+        
+        <String name="BlacklistEditorAdding">Adding new entry...</String>
+        <String name="BlacklistEditorEditing">Editing {0}...</String>
+        <String name="BlacklistEditorCancel">Cancel</String>
+        <String name="BlacklistEditorSave">Save</String>
+
+        <String name="FirstRunNext">Next</String>
+        <String name="FirstRunPrev">Previous</String>
+
+        <String name="FirstRunWelcomeTitle">Welcome to {0}!</String>
+        <String name="FirstRunWelcomeIntro">
+{0} is a utility that lets you manage the always-on-top state of windows from programs you have open.
+            
+You will now be taken through a few steps to configure {0} to your liking!
+        </String>
+
+        <String name="FirstRunHotKeyTitle">Selecting a hot key</String>
+        <String name="FirstRunHotKeyExplain">
+Select a global hot key for toggling the always on top status of whatever window is currently in the foreground.
+If you don't wish to specify one just hit Reset followed by Next.
+        </String>
+        <String name="FirstRunHotKeyNotify">Show a notification when the hot key has been used</String>
+
+        <String name="FirstRunAdminTitle">Administrator actions</String>
+        <String name="FirstRunAdminExplain">
+Sometimes {0} is not able to change the always on top state for certain windows without having administrative privileges.
+{0} provides multiple options for this situation:
+        </String>
+        <String name="FirstRunAdminOptionAsk">Ask me what to do when it's required.</String>
+        <String name="FirstRunAdminOptionImplicit">Ask for administrative privileges automatically when required.</String>
+        <String name="FirstRunAdminOptionAlways">Always run {0} as Administrator (not recommended).</String>
+
+        <String name="FirstRunThanksTitle">Thank you!</String>
+        <String name="FirstRunThanksThank">Thank you for using {0}!</String>
+        <String name="FirstRunThanksUpdate">Be sure to check the {0} [WEB]website[/WEB] and [CHANGELOG]changelog[/CHANGELOG] for updates from time to time.</String>
+        <String name="FirstRunThanksSettings">There are more options you may be interested in taking a look at in the [SETTINGS]Settings[/SETTINGS] window.</String>
+        <String name="FirstRunThanksAdmin">If you have chosen to always run {0} as Administrator, you will receive a User Account Control prompt after hitting next.</String>
+    </Strings>
+</Language>

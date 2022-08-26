@@ -26,9 +26,7 @@ namespace TopMostFriend {
         }
 
         public static string[] Get(string name, string[] fallback = null) {
-            byte[] buffer = GetRoot().GetValue(name, null) as byte[];
-
-            if (buffer == null)
+            if(!(GetRoot().GetValue(name, null) is byte[] buffer))
                 return fallback;
 
             List<string> strings = new List<string>();

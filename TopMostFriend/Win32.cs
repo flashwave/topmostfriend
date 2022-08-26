@@ -52,12 +52,10 @@ namespace TopMostFriend {
         public static extern IntPtr FindWindowEx(IntPtr hwndParent, IntPtr hwndChildAfter, string lpszClass, string lpszWindow);
 
         [DllImport(@"user32", SetLastError = true)]
-        public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+        public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out int lpdwProcessId);
 
         public static IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex) {
-            if (IntPtr.Size == 8)
-                return GetWindowLongPtr64(hWnd, nIndex);
-            return new IntPtr(GetWindowLong32(hWnd, nIndex));
+            return IntPtr.Size == 8 ? GetWindowLongPtr64(hWnd, nIndex) : new IntPtr(GetWindowLong32(hWnd, nIndex));
         }
 
         [DllImport(@"user32", EntryPoint = "GetWindowLong")]
@@ -84,9 +82,7 @@ namespace TopMostFriend {
         }
 
         public static IntPtr GetClassLongPtr(IntPtr hWnd, int nIndex) {
-            if (IntPtr.Size > 4)
-                return GetClassLongPtr64(hWnd, nIndex);
-            return new IntPtr(GetClassLongPtr32(hWnd, nIndex));
+            return IntPtr.Size > 4 ? GetClassLongPtr64(hWnd, nIndex) : new IntPtr(GetClassLongPtr32(hWnd, nIndex));
         }
 
         [DllImport(@"user32", EntryPoint = "GetClassLong")]

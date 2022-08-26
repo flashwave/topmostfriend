@@ -15,7 +15,7 @@ namespace TopMostFriend {
         }
 
         public AboutWindow() {
-            Text = @"About Top Most Friend";
+            Text = Locale.String(@"AboutTitle");
             Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
             BackgroundImage = Properties.Resources.about;
             StartPosition = FormStartPosition.CenterScreen;
@@ -24,11 +24,12 @@ namespace TopMostFriend {
             ClientSize = Properties.Resources.about.Size;
             MaximizeBox = MinimizeBox = false;
             MaximumSize = MinimumSize = Size;
+            TopMost = true;
 
             int tabIndex = 0;
 
             Button closeButton = new Button {
-                Text = @"Close",
+                Text = Locale.String(@"AboutClose"),
                 Size = new Size(BUTTON_WIDTH, BUTTON_HEIGHT),
                 TabIndex = ++tabIndex,
             };
@@ -37,7 +38,7 @@ namespace TopMostFriend {
             Controls.Add(closeButton);
 
             Button websiteButton = new Button {
-                Text = @"Website",
+                Text = Locale.String(@"AboutWebsite"),
                 Size = new Size(BUTTON_WIDTH, BUTTON_HEIGHT),
                 TabIndex = ++tabIndex,
             };
@@ -46,7 +47,7 @@ namespace TopMostFriend {
             Controls.Add(websiteButton);
 
             Button donateButton = new Button {
-                Text = @"Donate",
+                Text = Locale.String(@"AboutDonate"),
                 Size = new Size(BUTTON_WIDTH, BUTTON_HEIGHT),
                 TabIndex = ++tabIndex,
             };

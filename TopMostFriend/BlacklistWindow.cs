@@ -35,26 +35,27 @@ namespace TopMostFriend {
             MinimizeBox = MaximizeBox = false;
             MinimumSize = Size;
             DialogResult = DialogResult.Cancel;
+            TopMost = true;
 
             BlacklistView = new ListBox {
                 TabIndex = 101,
                 IntegralHeight = false,
                 Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
-                Location = new Point(BUTTON_WIDTH + (SPACING * 2), SPACING),
+                Location = new Point(SPACING, SPACING),
                 ClientSize = new Size(ClientSize.Width - BUTTON_WIDTH - (int)(SPACING * 3.5), ClientSize.Height - (int)(SPACING * 2.5)),
             };
             BlacklistView.SelectedIndexChanged += BlacklistView_SelectedIndexChanged;
             BlacklistView.MouseDoubleClick += BlacklistView_MouseDoubleClick;
 
             AddButton = new Button {
-                Anchor = AnchorStyles.Top | AnchorStyles.Left,
-                Text = @"Add",
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                Text = Locale.String(@"BlacklistAdd"),
                 ClientSize = new Size(BUTTON_WIDTH, BUTTON_HEIGHT),
-                Location = new Point(SPACING, SPACING),
+                Location = new Point(BlacklistView.Width + (SPACING * 2), SPACING),
                 TabIndex = 201,
             };
             EditButton = new Button {
-                Text = @"Edit",
+                Text = Locale.String(@"BlacklistEdit"),
                 Location = new Point(AddButton.Location.X, AddButton.Location.Y + AddButton.Height + SPACING),
                 Enabled = false,
                 Anchor = AddButton.Anchor,
@@ -62,7 +63,7 @@ namespace TopMostFriend {
                 TabIndex = 202,
             };
             RemoveButton = new Button {
-                Text = @"Remove",
+                Text = Locale.String(@"BlacklistRemove"),
                 Location = new Point(AddButton.Location.X, EditButton.Location.Y + AddButton.Height + SPACING),
                 Enabled = false,
                 Anchor = AddButton.Anchor,
@@ -75,16 +76,16 @@ namespace TopMostFriend {
             RemoveButton.Click += RemoveButton_Click;
 
             CancelButton = new Button {
-                Anchor = AnchorStyles.Bottom | AnchorStyles.Left,
-                Text = @"Cancel",
-                Location = new Point(SPACING, ClientSize.Height - AddButton.ClientSize.Height - SPACING),
+                Anchor = AnchorStyles.Bottom | AnchorStyles.Right,
+                Text = Locale.String(@"BlacklistCancel"),
+                Location = new Point(AddButton.Location.X, ClientSize.Height - AddButton.ClientSize.Height - SPACING),
                 ClientSize = AddButton.ClientSize,
                 TabIndex = 10001,
             };
             Button acceptButton = new Button {
-                Anchor = AnchorStyles.Bottom | AnchorStyles.Left,
-                Text = @"Done",
-                Location = new Point(SPACING, ClientSize.Height - ((AddButton.ClientSize.Height + SPACING) * 2)),
+                Anchor = AnchorStyles.Bottom | AnchorStyles.Right,
+                Text = Locale.String(@"BlacklistDone"),
+                Location = new Point(AddButton.Location.X, ClientSize.Height - ((AddButton.ClientSize.Height + SPACING) * 2)),
                 ClientSize = AddButton.ClientSize,
                 TabIndex = 10002,
             };
@@ -106,16 +107,18 @@ namespace TopMostFriend {
             public string Original { get; }
             public string String { get => TextBox.Text; }
 
-            private TextBox TextBox;
+            private readonly TextBox TextBox;
 
             public BlacklistEditorWindow(string original = null) {
                 Original = original ?? string.Empty;
-                Text = original == null ? @"Adding new entry..." : $@"Editing {original}...";
+                Text = Locale.String(original == null ? @"BlacklistEditorAdding" : @"BlacklistEditorEditing", original);
+                Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
                 StartPosition = FormStartPosition.CenterParent;
-                FormBorderStyle = FormBorderStyle.FixedToolWindow;
+                FormBorderStyle = FormBorderStyle.FixedSingle;
                 ClientSize = new Size(500, 39);
                 MaximizeBox = MinimizeBox = false;
                 MaximumSize = MinimumSize = Size;
+                TopMost = true;
 
                 Button cancelButton = new Button {
                     Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Right,
@@ -123,7 +126,7 @@ namespace TopMostFriend {
                     Name = @"cancelButton",
                     Size = new Size(75, 23),
                     TabIndex = 102,
-                    Text = @"Cancel",
+                    Text = Locale.String(@"BlacklistEditorCancel"),
                 };
                 cancelButton.Click += (s, e) => { DialogResult = DialogResult.Cancel; Close(); };
 
@@ -133,14 +136,14 @@ namespace TopMostFriend {
                     Name = @"saveButton",
                     Size = new Size(75, 23),
                     TabIndex = 101,
-                    Text = @"Save",
+                    Text = Locale.String(@"BlacklistEditorSave"),
                 };
                 saveButton.Click += (s, e) => { DialogResult = DialogResult.OK; Close(); };
 
                 TextBox = new TextBox {
                     Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
                     Location = new Point(8, 9),
-                    Name = @"deviceSelection",
+                    Name = @"deviceSelection", // ??????
                     Size = new Size(ClientSize.Width - 8 - cancelButton.Width - saveButton.Width - 19, 23),
                     TabIndex = 100,
                     Text = Original,

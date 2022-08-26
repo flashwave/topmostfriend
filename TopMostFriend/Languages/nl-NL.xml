@@ -1,0 +1,109 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Language>
+    <Info>
+        <Id>nl-NL</Id>
+        <NameNative>Nederlands</NameNative>
+        <NameEnglish>Dutch</NameEnglish>
+        <TargetVersion>1.6.0</TargetVersion>
+    </Info>
+    <Strings>
+        <String name="AlreadyRunning">{0} is al gestart.</String>
+
+        <String name="TrayRefresh">&amp;Verversen</String>
+        <String name="TraySettings">&amp;Instellingen</String>
+        <String name="TrayAbout">&amp;Over</String>
+        <String name="TrayQuit">&amp;Sluiten</String>
+
+        <String name="NotifyOnTop">Nu altijd op voorgrond</String>
+        <String name="NotifyNoLonger">Niet langer altijd op voorgrond</String>
+        <String name="NotifyNoTitle">Venster heeft geen titel.</String>
+
+        <String name="ErrUnableAlterStatus1">Het was niet mogelijk om de altijd op voorgrond status van dit venster te veranderen.</String>
+        <String name="ErrUnableAlterStatus2">Wil je het opnieuw proberen als Administrator? Een Gebruikersaccountbeheer dialoog zal verschijnen als je op Ja klikt.</String>
+        <String name="ErrUnableAlterStatusProtected">{0} kon nog steeds niet de altijd op voorgrond status van dit venster veranderen. Het wordt mogelijk beschermd door Windows.</String>
+
+        <String name="AboutTitle">Over {0}</String>
+        <String name="AboutClose">Sluiten</String>
+        <String name="AboutWebsite">Website</String>
+        <String name="AboutDonate">Doneer</String>
+
+        <String name="SettingsTitle">{0} Instellingen</String>
+        <String name="SettingsApply">Toepassen</String>
+        <String name="SettingsCancel">Annuleren</String>
+        <String name="SettingsOk">OK</String>
+
+        <String name="SettingsHotKeysTitle">Sneltoetsen</String>
+        <String name="SettingsHotKeysReset">Herstel</String>
+        <String name="SettingsHotKeysToggle">Schakel altijd op voorgrond status op actief venster</String>
+
+        <String name="SettingsOptionsTitle">Opties</String>
+        <String name="SettingsOptionsToggleNotify">Toon notificatie als de sneltoets gebruikt is</String>
+        <String name="SettingsOptionsToggleNotifyIcon">Toon icoon van venster dat beïnvloed was door de sneltoets</String>
+        <String name="SettingsOptionsElevatedRetry">Probeer altijd opnieuw als Administrator bij de eerste mislukking van het veranderen van de status</String>
+        <String name="SettingsOptionsShiftBlacklist">SHIFT+CLICK items in de systeemvak lijst om ze toe te voegen aan de titel blacklist</String>
+        <String name="SettingsOptionsRevertOnExit">Herstel status naar voordat {0} ze heeft aangepast tijdens het sluiten</String>
+        <String name="SettingsOptionsShowTrayList">Geef lijst met open venster weer in het systeemvak menu</String>
+        <String name="SettingsOptionsAlwaysAdmin">Start altijd als Administrator</String>
+
+        <String name="SettingsLanguageTitle">Taal (Language)</String>
+        <String name="SettingsLanguageChangedInfo">Je moet {0} opnieuw starten om de verandering van de taal volledig effect te laten nemen. Veel tekst zal nog steeds verschijnen in de voorheen geselecteerde taal.</String>
+
+        <String name="SettingsOtherTitle">Overig</String>
+        <String name="SettingsOtherBlacklistButton">Beheer Blacklist...</String>
+        <String name="SettingsOtherBlacklistWindowTitle">Titel Blacklist</String>
+        <String name="SettingsOtherStartupButton">Start met Windows...</String>
+        <String name="SettingsOtherStartupConfirm">
+Moet {0} tegelijkertijd met Windows starten?
+Als je op Ja klikt zal een een snelkoppeling aangemaakt worden in de Opstarten map van het start menu, als je op Nee klikt wordt de snelkoppeling verwijderd.
+Zorg ervoor dat je het EXE bestand voor {0} in een permanente locatie hebt voordat je op Ja klikt.
+        </String>
+        <String name="SettingsOtherResetButton">Herstel alle instellingen...</String>
+        <String name="SettingsOtherResetConfirm">
+Dit zal alle instellingen verwijderen en het programma opnieuw opstarten.
+Weet je het absoluut zeker?
+        </String>
+
+        <String name="BlacklistAdd">Toevoegen</String>
+        <String name="BlacklistEdit">Bewerken</String>
+        <String name="BlacklistRemove">Verwijderen</String>
+        <String name="BlacklistCancel">Annuleren</String>
+        <String name="BlacklistDone">Klaar</String>
+
+        <String name="BlacklistEditorAdding">Nieuw item toevoegen...</String>
+        <String name="BlacklistEditorEditing">{0} bewerken...</String>
+        <String name="BlacklistEditorCancel">Annuleren</String>
+        <String name="BlacklistEditorSave">Opslaan</String>
+
+        <String name="FirstRunNext">Volgende</String>
+        <String name="FirstRunPrev">Vorige</String>
+
+        <String name="FirstRunWelcomeTitle">Welkom bij {0}!</String>
+        <String name="FirstRunWelcomeIntro">
+{0} is een hulpprogramma dat jou controle geeft over de altijd-op-voorgrond status van programma's die je open hebt.
+
+Je zal nu door een aantal stappen genomen worden om {0} naar jouw wens te configureren!
+        </String>
+
+        <String name="FirstRunHotKeyTitle">Sneltoets selecteren</String>
+        <String name="FirstRunHotKeyExplain">
+Selecteer een globale sneltoets voor het wijzigen van de altijd op voorgrond status van het venster dat op dat moment in de voorgrond staat.
+Als je geen sneltoets toe wil wijzen, druk op Herstel en vervolgens op Volgende.
+        </String>
+        <String name="FirstRunHotKeyNotify">Toon een melding wanneer de sneltoets is gebruikt</String>
+
+        <String name="FirstRunAdminTitle">Administrator acties</String>
+        <String name="FirstRunAdminExplain">
+Soms kan {0} niet de altijd op voorgrond status van bepaalde vensters aanpassen omdat daar administratieve rechten voor nodig zijn.
+{0} geeft je de volgende opties voor deze situatie:
+        </String>
+        <String name="FirstRunAdminOptionAsk">Vraag mij wat te doen wanneer het nodig is.</String>
+        <String name="FirstRunAdminOptionImplicit">Vraag mij automatisch om administratieve rechten wanneer het nodig is.</String>
+        <String name="FirstRunAdminOptionAlways">Start {0} altijd als Administrator (niet aanbevolen).</String>
+
+        <String name="FirstRunThanksTitle">Bedankt!</String>
+        <String name="FirstRunThanksThank">Bedankt voor het gebruiken van {0}!</String>
+        <String name="FirstRunThanksUpdate">Controlleer de {0} [WEB]website[/WEB] en [CHANGELOG]changelog[/CHANGELOG] eens in de zoveel tijd om te kijken of er updates zijn.</String>
+        <String name="FirstRunThanksSettings">Naast de opties die je al gekregen hebt, zijn er nog meer beschikbaar in het [SETTINGS]Instellingen[/SETTINGS] venster als je daarin geïnteresseerd bent.</String>
+        <String name="FirstRunThanksAdmin">Als je gekozen hebt om {0} altijd als Administrator te starten, zal je een Gebruikersaccountbeheer dialoog zien nadat je op volgende klikt.</String>
+    </Strings>
+</Language>

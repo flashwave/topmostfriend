@@ -5,7 +5,6 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
-using System.Security.Principal;
 using System.Text;
 using System.Threading;
 using System.Windows.Forms;
@@ -17,6 +16,8 @@ namespace TopMostFriend {
         private static HotKeyWindow HotKeys;
         private static Icon OriginalIcon;
 
+        public const string TITLE = @"Top Most Friend";
+
         private const string GUID =
 #if DEBUG
             @"{1A22D9CA-2AA9-48F2-B007-3A48CF205CDD}";
@@ -24,6 +25,8 @@ namespace TopMostFriend {
             @"{5BE25191-E1E2-48A7-B038-E986CD989E91}";
 #endif
         private static readonly Mutex GlobalMutex = new Mutex(true, GUID);
+
+        private const string CUSTOM_LANGUAGE = @"TopMostFriendLanguage.xml";
 
         public const string FOREGROUND_HOTKEY_ATOM = @"{86795D64-770D-4BD6-AA26-FA638FBAABCF}";
 #if DEBUG
@@ -44,6 +47,10 @@ namespace TopMostFriend {
         public const string TITLE_BLACKLIST = @"TitleBlacklist";
         public const string SHOW_HOTKEY_ICON = @"ShowHotkeyIcon";
         public const string SHOW_WINDOW_LIST = @"ShowWindowList";
+        public const string LAST_VERSION = @"LastVersion";
+        public const string ALWAYS_RETRY_ELEVATED = @"AlwaysRetryElevated";
+        public const string REVERT_ON_EXIT = @"RevertOnExit";
+        public const string LANGUAGE = @"Language";
 
         private static ToolStripItem RefreshButton;
         private static ToolStripItem LastSelectedItem = null;
@@ -53,8 +60,39 @@ namespace TopMostFriend {
         private static ToolStripItem[] ListActionItems;
         private static ToolStripItem[] AppActionItems;
 
+        private static readonly Dictionary<IntPtr, bool> OriginalStates = new Dictionary<IntPtr, bool>();
+
         [STAThread]
-        public static void Main(string[] args) {
+        public static int Main(string[] args) {
+            Settings.Set(LAST_VERSION, Application.ProductVersion);
+
+            IEnumerable<string> cliToggleNew = args.Where(a => a.StartsWith(@"--toggle=")).Select(a => a.Substring(9));
+            if(cliToggleNew.Any()) {
+                bool is32bit = IntPtr.Size == 4;
+
+                foreach(string hwndStr in cliToggleNew) {
+                    IntPtr hwnd;
+                    if(is32bit) {
+                        if(int.TryParse(hwndStr, out int hwnd32))
+                            hwnd = new IntPtr(hwnd32);
+                        else
+                            return 1;
+                    } else {
+                        if(long.TryParse(hwndStr, out long hwnd64))
+                            hwnd = new IntPtr(hwnd64);
+                        else
+                            return 1;
+                    }
+
+                    // pass 0 to skip implicit FindOwnerId call
+                    WindowInfo wi = new WindowInfo(hwnd, 0);
+                    if(!wi.ToggleTopMost(!args.Contains($@"--background={hwndStr}")))
+                        return 2;
+                }
+
+                return 0;
+            }
+
             if(Environment.OSVersion.Version.Major >= 6)
                 Win32.SetProcessDPIAware();
 
@@ -64,26 +102,53 @@ namespace TopMostFriend {
             if(args.Contains(@"--reset-admin"))
                 Settings.Remove(ALWAYS_ADMIN_SETTING);
 
-            string cliToggle = args.FirstOrDefault(x => x.StartsWith(@"--hwnd="));
-            if(!string.IsNullOrEmpty(cliToggle) && int.TryParse(cliToggle.Substring(7), out int cliToggleHWnd)) {
-                WindowInfo cliWindow = new WindowInfo(cliToggleHWnd);
-                if(!cliWindow.ToggleTopMost())
-                    TopMostFailed(cliWindow);
+            string cliToggleOld = args.FirstOrDefault(a => a.StartsWith(@"--hwnd="))?.Substring(7);
+            if(!string.IsNullOrEmpty(cliToggleOld)) {
+                IntPtr cliToggleHWnd = IntPtr.Zero;
+                if(IntPtr.Size == 4) {
+                    if(int.TryParse(cliToggleOld, out int hwnd32))
+                        cliToggleHWnd = new IntPtr(hwnd32);
+                } else {
+                    if(long.TryParse(cliToggleOld, out long hwnd64))
+                        cliToggleHWnd = new IntPtr(hwnd64);
+                }
+
+                if(cliToggleHWnd != IntPtr.Zero) {
+                    WindowInfo cliWindow = new WindowInfo(cliToggleHWnd);
+                    if(!cliWindow.ToggleTopMost())
+                        TopMostFailed(cliWindow);
+                }
             }
 
             if(args.Contains(@"--stop"))
-                return;
+                return 0;
+
+            if(File.Exists(CUSTOM_LANGUAGE)) {
+                string customLanguage;
+                using(Stream s = File.OpenRead(CUSTOM_LANGUAGE))
+                    try {
+                        customLanguage = Locale.LoadLanguage(s);
+                    } catch {
+                        customLanguage = Locale.DEFAULT;
+                    }
+                Locale.SetLanguage(customLanguage);
+            } else
+                Locale.SetLanguage(Locale.GetPreferredLanguage());
 
             if(!GlobalMutex.WaitOne(0, true)) {
-                MessageBox.Show(@"An instance of Top Most Friend is already running.", @"Top Most Friend");
-                return;
+                MessageBox.Show(Locale.String(@"AlreadyRunning"), TITLE, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return -1;
             }
+
+            bool isFirstRun = !Settings.Has(FOREGROUND_HOTKEY_SETTING);
 
             Settings.SetDefault(FOREGROUND_HOTKEY_SETTING, 0);
             Settings.SetDefault(ALWAYS_ADMIN_SETTING, false);
             Settings.SetDefault(SHIFT_CLICK_BLACKLIST, true);
             Settings.SetDefault(SHOW_HOTKEY_ICON, true);
             Settings.SetDefault(SHOW_WINDOW_LIST, true);
+            Settings.SetDefault(ALWAYS_RETRY_ELEVATED, false);
+            Settings.SetDefault(REVERT_ON_EXIT, false);
             // Defaulting to false on Windows 10 because it uses the stupid, annoying and intrusive new Android style notification system
             // This would fucking piledrive the notification history and also just be annoying in general because intrusive
             Settings.SetDefault(TOGGLE_BALLOON_SETTING, ToggleBalloonDefault);
@@ -102,9 +167,9 @@ namespace TopMostFriend {
                 Settings.Set(TITLE_BLACKLIST, titles.ToArray());
             }
 
-            if(Settings.Get<bool>(ALWAYS_ADMIN_SETTING) && !IsElevated()) {
-                Elevate();
-                return;
+            if(Settings.Get<bool>(ALWAYS_ADMIN_SETTING) && !UAC.IsElevated) {
+                UAC.RestartElevated();
+                return -2;
             }
 
             TitleBlacklist.Clear();
@@ -134,19 +199,19 @@ namespace TopMostFriend {
             CtxMenu.ItemClicked += CtxMenu_ItemClicked;
             ListActionItems = new ToolStripItem[] {
                 new ToolStripSeparator(),
-                RefreshButton = new ToolStripMenuItem(@"&Refresh", Properties.Resources.arrow_refresh, new EventHandler((s, e) => RefreshWindowList())),
+                RefreshButton = new ToolStripMenuItem(Locale.String(@"TrayRefresh"), Properties.Resources.arrow_refresh, new EventHandler((s, e) => RefreshWindowList())),
             };
             AppActionItems = new ToolStripItem[] {
-                new ToolStripMenuItem(@"&Settings", Properties.Resources.cog, new EventHandler((s, e) => SettingsWindow.Display())),
-                new ToolStripMenuItem(@"&About", Properties.Resources.help, new EventHandler((s, e) => AboutWindow.Display())),
-                new ToolStripMenuItem(@"&Quit", Properties.Resources.door_in, new EventHandler((s, e) => Application.Exit())),
+                new ToolStripMenuItem(Locale.String(@"TraySettings"), Properties.Resources.cog, new EventHandler((s, e) => SettingsWindow.Display())),
+                new ToolStripMenuItem(Locale.String(@"TrayAbout"), Properties.Resources.help, new EventHandler((s, e) => AboutWindow.Display())),
+                new ToolStripMenuItem(Locale.String(@"TrayQuit"), Properties.Resources.door_in, new EventHandler((s, e) => Application.Exit())),
             };
             CtxMenu.Items.AddRange(AppActionItems);
 
             SysIcon = new NotifyIcon {
                 Visible = true,
                 Icon = OriginalIcon,
-                Text = @"Top Most Application Manager",
+                Text = TITLE,
             };
             SysIcon.ContextMenuStrip = CtxMenu;
             SysIcon.MouseDown += SysIcon_MouseDown;
@@ -154,9 +219,26 @@ namespace TopMostFriend {
             HotKeys = new HotKeyWindow();
             SetForegroundHotKey(Settings.Get<int>(FOREGROUND_HOTKEY_SETTING));
 
+            if(isFirstRun)
+                FirstRunWindow.Display();
+
             Application.Run();
 
+            if(Settings.Get(REVERT_ON_EXIT, false))
+                RevertTopMostStatus();
+
             Shutdown();
+
+            return 0;
+        }
+
+        public static void RevertTopMostStatus() {
+            foreach(KeyValuePair<IntPtr, bool> originalState in OriginalStates) {
+                WindowInfo wi = new WindowInfo(originalState.Key);
+                if(wi.IsTopMost != originalState.Value)
+                    if(!wi.ToggleTopMost(false))
+                        TopMostFailed(wi, false);
+            }
         }
 
         public static void AddBlacklistedTitle(string title) {
@@ -190,33 +272,6 @@ namespace TopMostFriend {
             HotKeys?.Dispose();
             SysIcon?.Dispose();
             GlobalMutex.ReleaseMutex();
-        }
-
-        private static bool? IsElevatedValue;
-
-        public static bool IsElevated() {
-            if(!IsElevatedValue.HasValue) {
-                using(WindowsIdentity identity = WindowsIdentity.GetCurrent())
-                    IsElevatedValue = identity != null && new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
-            }
-
-            return IsElevatedValue.Value;
-        }
-
-        public static void Elevate(string args = null) {
-            if(IsElevated())
-                return;
-
-            Shutdown();
-
-            Process.Start(new ProcessStartInfo {
-                UseShellExecute = true,
-                FileName = Application.ExecutablePath,
-                WorkingDirectory = Environment.CurrentDirectory,
-                Arguments = args ?? string.Empty,
-                Verb = @"runas",
-            });
-            Application.Exit();
         }
 
         public static void SetForegroundHotKey(int keyCode) {
@@ -270,8 +325,13 @@ namespace TopMostFriend {
                         if(Settings.Get(SHIFT_CLICK_BLACKLIST, true) && Control.ModifierKeys.HasFlag(Keys.Shift)) {
                             AddBlacklistedTitle(title);
                             SaveBlacklistedTitles();
-                        } else if(!window.ToggleTopMost())
-                            TopMostFailed(window);
+                        } else {
+                            if(window.ToggleTopMost()) {
+                                if(!OriginalStates.ContainsKey(window.Handle))
+                                    OriginalStates[window.Handle] = !window.IsTopMost;
+                            } else
+                                TopMostFailed(window);
+                        }
                     })) {
                         CheckOnClick = true,
                         Checked = window.IsTopMost,
@@ -287,50 +347,29 @@ namespace TopMostFriend {
             CtxMenu.Items.AddRange(items.ToArray());
         }
 
-        private static void TopMostFailed(WindowInfo window) {
-            MessageBoxButtons buttons = MessageBoxButtons.OK;
-            StringBuilder sb = new StringBuilder();
-            sb.AppendLine(@"Wasn't able to change topmost status on this window.");
+        private static void TopMostFailed(WindowInfo window, bool switchWindow = true) {
+            bool retryElevated = Settings.Get(ALWAYS_RETRY_ELEVATED, false),
+                isElevated = UAC.IsElevated;
 
-            if(!IsElevated()) {
-                sb.AppendLine(@"Do you want to restart Top Most Friend as administrator and try again?");
-                buttons = MessageBoxButtons.YesNo;
+            if(!retryElevated) {
+                MessageBoxButtons buttons = MessageBoxButtons.OK;
+                StringBuilder sb = new StringBuilder();
+                sb.AppendLine(Locale.String(@"ErrUnableAlterStatus1"));
+
+                if(!isElevated) {
+                    sb.AppendLine(Locale.String(@"ErrUnableAlterStatus2"));
+                    buttons = MessageBoxButtons.YesNo;
+                }
+
+                retryElevated = MessageBox.Show(sb.ToString(), TITLE, buttons, MessageBoxIcon.Error) == DialogResult.Yes;
             }
 
-            DialogResult result = MessageBox.Show(sb.ToString(), @"Top Most Friend", buttons, MessageBoxIcon.Error);
-
-            if(result == DialogResult.Yes)
-                Elevate($@"--hwnd={window.Handle}");
-        }
-
-        private class ActionTimeout {
-            private readonly Action Action;
-            private bool Continue = true;
-            private int Remaining = 0;
-            private const int STEP = 500;
-
-            public ActionTimeout(Action action, int timeout) {
-                Action = action ?? throw new ArgumentNullException(nameof(action));
-                if(timeout < 1)
-                    throw new ArgumentException(@"Timeout must be a positive integer.", nameof(timeout));
-                Remaining = timeout;
-                new Thread(ThreadBody) { IsBackground = true }.Start();
-            }
-
-            private void ThreadBody() {
-                do {
-                    Thread.Sleep(STEP);
-                    Remaining -= STEP;
-
-                    if(!Continue)
-                        return;
-                } while(Remaining > 0);
-
-                Action.Invoke();
-            }
-
-            public void Cancel() {
-                Continue = false;
+            if(retryElevated) {
+                if(window.ToggleTopMostElevated(switchWindow)) {
+                    if(!OriginalStates.ContainsKey(window.Handle))
+                        OriginalStates[window.Handle] = !window.IsTopMost;
+                } else
+                    MessageBox.Show(Locale.String(@"ErrUnableAlterStatusProtected"), TITLE, MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -343,8 +382,8 @@ namespace TopMostFriend {
                 if(Settings.Get(TOGGLE_BALLOON_SETTING, false)) {
                     string title = window.Title;
                     SysIcon?.ShowBalloonTip(
-                        2000, window.IsTopMost ? @"Always on top" : @"No longer always on top",
-                        string.IsNullOrEmpty(title) ? @"Window has no title." : title,
+                        2000, Locale.String(window.IsTopMost ? @"NotifyOnTop" : @"NotifyNoLonger"),
+                        string.IsNullOrEmpty(title) ? Locale.String(@"NotifyNoTitle") : title,
                         ToolTipIcon.Info
                     );
                 }

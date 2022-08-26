@@ -3,18 +3,18 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
-using System.Text;
 
 namespace TopMostFriend {
     public class WindowInfo {
         public IntPtr Handle { get; }
-        public Process Owner { get; }
+        public int ProcessId { get; }
+
+        public Process Owner => Process.GetProcessById(ProcessId);
 
         public string Title => Win32.GetWindowTextString(Handle);
 
-        public long Flags => Win32.GetWindowLongPtr(Handle, Win32.GWL_EXSTYLE).ToInt32();
         public bool IsTopMost {
-            get => (Flags & Win32.WS_EX_TOPMOST) > 0;
+            get => (Win32.GetWindowLongPtr(Handle, Win32.GWL_EXSTYLE).ToInt32() & Win32.WS_EX_TOPMOST) > 0;
             set {
                 Win32.SetWindowPos(
                     Handle, new IntPtr(value ? Win32.HWND_TOPMOST : Win32.HWND_NOTOPMOST),
@@ -52,33 +52,34 @@ namespace TopMostFriend {
         public Image IconBitmap
             => Icon?.ToBitmap();
 
-        public WindowInfo(int handle)
-            : this(new IntPtr(handle)) {}
-
         public WindowInfo(IntPtr handle)
-            : this(handle, FindOwner(handle)) {}
+            : this(handle, FindOwnerId(handle)) { }
 
-        public WindowInfo(IntPtr handle, Process owner) {
+        public WindowInfo(IntPtr handle, int processId) {
             Handle = handle;
-            Owner = owner ?? throw new ArgumentNullException(nameof(owner));
+            ProcessId = processId;
         }
 
         public void SwitchTo() {
             Win32.SwitchToThisWindow(Handle, false);
         }
 
-        public bool ToggleTopMost() {
+        public bool ToggleTopMost(bool switchWindow = true) {
             bool expected = !IsTopMost;
             IsTopMost = expected;
             bool success = IsTopMost == expected;
-            if(expected && success)
+            if(switchWindow && expected && success)
                 SwitchTo();
             return success;
         }
 
-        public static Process FindOwner(IntPtr hWnd) {
-            Win32.GetWindowThreadProcessId(hWnd, out uint procId);
-            return Process.GetProcessById((int)procId);
+        public bool ToggleTopMostElevated(bool switchWindow = true) {
+            return UAC.ToggleWindowTopMost(this, switchWindow) == 0;
+        }
+
+        public static int FindOwnerId(IntPtr hWnd) {
+            Win32.GetWindowThreadProcessId(hWnd, out int procId);
+            return procId;
         }
 
         public static WindowInfo GetForegroundWindow() {
