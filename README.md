@@ -1,7 +1,5 @@
 # TopMostFriend
 
-utility that lets you quickly force any program to be always on top
+[Download](https://github.com/flashwave/topmostfriend/releases/latest) | [Download (mirror)](https://flash.moe/topmostfriend/downloads.php#latest)
 
-should work on any version of windows that supports .net framework 4.0
-
-[Click here to download!](https://github.com/flashwave/topmostfriend/releases/latest)
+A utility for Windows XP and up that silently runs in from your system tray area and lets you toggle the always on top status of almost any application window.
