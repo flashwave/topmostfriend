@@ -237,46 +237,50 @@ namespace TopMostFriend {
         }
 
         private static void RefreshWindowList() {
-            IEnumerable<WindowInfo> windows = WindowInfo.GetAllWindows();
             List<ToolStripItem> items = new List<ToolStripItem>();
-            Process lastProc = null;
-            bool procSeparator = Settings.Get(PROCESS_SEPARATOR_SETTING, false);
-            bool showEmptyTitles = Settings.Get(SHOW_EMPTY_WINDOW_SETTING, false);
-            bool listSelf = Settings.Get(LIST_SELF_SETTING, Debugger.IsAttached);
 
-            foreach(WindowInfo window in windows) {
-                if(!listSelf && window.IsOwnWindow)
-                    continue;
+            if(Settings.Get(SHOW_WINDOW_LIST, true)) {
+                IEnumerable<WindowInfo> windows = WindowInfo.GetAllWindows();
+                Process lastProc = null;
+                bool procSeparator = Settings.Get(PROCESS_SEPARATOR_SETTING, false);
+                bool showEmptyTitles = Settings.Get(SHOW_EMPTY_WINDOW_SETTING, false);
+                bool listSelf = Settings.Get(LIST_SELF_SETTING, Debugger.IsAttached);
 
-                if(procSeparator && lastProc != window.Owner) {
-                    if(lastProc != null)
-                        items.Add(new ToolStripSeparator());
-                    lastProc = window.Owner;
+                foreach(WindowInfo window in windows) {
+                    if(!listSelf && window.IsOwnWindow)
+                        continue;
+
+                    if(procSeparator && lastProc != window.Owner) {
+                        if(lastProc != null)
+                            items.Add(new ToolStripSeparator());
+                        lastProc = window.Owner;
+                    }
+
+                    string title = window.Title;
+
+                    // i think it's a fair assumption that any visible window worth a damn has a window title
+                    if(!showEmptyTitles && string.IsNullOrEmpty(title))
+                        continue;
+
+                    // Skip items in the blacklist
+                    if(CheckBlacklistedTitles(title))
+                        continue;
+
+                    items.Add(new ToolStripMenuItem(title, window.IconBitmap, new EventHandler((s, e) => {
+                        if(Settings.Get(SHIFT_CLICK_BLACKLIST, true) && Control.ModifierKeys.HasFlag(Keys.Shift)) {
+                            AddBlacklistedTitle(title);
+                            SaveBlacklistedTitles();
+                        } else if(!window.ToggleTopMost())
+                            TopMostFailed(window);
+                    })) {
+                        CheckOnClick = true,
+                        Checked = window.IsTopMost,
+                    });
                 }
 
-                string title = window.Title;
-
-                // i think it's a fair assumption that any visible window worth a damn has a window title
-                if(!showEmptyTitles && string.IsNullOrEmpty(title))
-                    continue;
-
-                // Skip items in the blacklist
-                if(CheckBlacklistedTitles(title))
-                    continue;
-
-                items.Add(new ToolStripMenuItem(title, window.IconBitmap, new EventHandler((s, e) => {
-                    if(Settings.Get(SHIFT_CLICK_BLACKLIST, true) && Control.ModifierKeys.HasFlag(Keys.Shift)) {
-                        AddBlacklistedTitle(title);
-                        SaveBlacklistedTitles();
-                    } else if(!window.ToggleTopMost())
-                        TopMostFailed(window);
-                })) {
-                    CheckOnClick = true,
-                    Checked = window.IsTopMost,
-                });
+                items.AddRange(ListActionItems);
             }
 
-            items.AddRange(ListActionItems);
             items.AddRange(AppActionItems);
 
             CtxMenu.Items.Clear();
